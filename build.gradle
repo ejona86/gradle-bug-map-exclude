@@ -1,0 +1,57 @@
+class ProcessInput extends DefaultTask {
+    @InputFiles
+    FileCollection inputArg;
+
+    @TaskAction
+    public void doit() {
+        println(inputArg.files)
+    }
+}
+
+tasks.register("excludedTask", Sync) {
+    from 'build.gradle'
+    into 'build/created1'
+}
+
+tasks.register("normalTask", Sync) {
+    from 'build.gradle'
+    into 'build/created2'
+}
+
+tasks.register("disabledTask", Sync) {
+    from 'build.gradle'
+    into 'build/created3'
+    enabled = false
+}
+
+tasks.register("brokenWithMapWhenTaskExcluded", ProcessInput) {
+    inputArg = files(excludedTask.outputs.files.elements.map { it })
+}
+
+tasks.register("brokenWithMapInActionWhenTaskExcluded", ProcessInput) {
+    inputArg = files(excludedTask.outputs.files.elements)
+    doLast {
+        println(files(excludedTask.outputs.files.elements.map { it }).files)
+    }
+}
+
+tasks.register("workingWithoutMapWhenTaskExcluded", ProcessInput) {
+    inputArg = files(excludedTask.outputs.files.elements)
+}
+
+tasks.register("workingWithMapWhenTaskNormal", ProcessInput) {
+    inputArg = files(normalTask.outputs.files.elements.map { it })
+}
+
+tasks.register("workingWithMapWhenTaskDisabled", ProcessInput) {
+    inputArg = files(disabledTask.outputs.files.elements.map { it })
+}
+
+tasks.register("build").configure {
+    dependsOn workingWithoutMapWhenTaskExcluded
+    dependsOn workingWithMapWhenTaskNormal
+    dependsOn workingWithMapWhenTaskDisabled
+
+    dependsOn brokenWithMapWhenTaskExcluded
+    dependsOn brokenWithMapInActionWhenTaskExcluded
+}
